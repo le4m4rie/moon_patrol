@@ -1,0 +1,106 @@
+package thd.gameobjects.unmovable;
+
+import thd.game.managers.GamePlayManager;
+import thd.game.utilities.GameView;
+import thd.gameobjects.base.ActivatableGameObject;
+import thd.gameobjects.base.CollidingGameObject;
+import thd.gameobjects.base.GameObject;
+import thd.gameobjects.base.ShiftableGameObject;
+import thd.gameobjects.movable.MoonBaggy;
+import thd.gameobjects.movable.Shot;
+import java.util.Random;
+
+
+/**
+ * Represent the obstacles the MoonBaggy has to get over.
+ */
+public class DirtObstacle extends CollidingGameObject implements ShiftableGameObject, ActivatableGameObject<GameObject> {
+
+    private String image;
+    private double scale;
+    private enum State {
+        STANDARD("dirt.png"), BREAKING("breaking.png"), BROKEN("broken.png");
+
+        private final String display;
+
+        State(String display) {
+            this.display = display;
+        }
+    }
+
+    private State currentState;
+
+    /**
+     * Creates a new DirtObstacle.
+     *
+     * @param gameView an instance of the GameView class.
+     *
+     * @param gamePlayManager an instance of the GamePlayManager class.
+     */
+    public DirtObstacle(GameView gameView, GamePlayManager gamePlayManager) {
+        super(gameView, gamePlayManager);
+        currentState = State.STANDARD;
+        size = 20;
+        rotation = 0;
+        width = 50;
+        height = 50;
+        hitBoxOffsets(0, 0, -10, 0);
+        scale = 0.5;
+        position.updateCoordinates(randomXCoordinate(), 630);
+        distanceToBackground = 6;
+    }
+
+    private double randomXCoordinate() {
+        Random r = new Random();
+        return r.nextDouble(1300-1000) + 1000;
+    }
+
+    @Override
+    public void addToCanvas() {
+        gameView.addImageToCanvas(image, position.getX(), position.getY(), scale, this.rotation);
+    }
+
+    @Override
+    public void reactToCollisionWith(CollidingGameObject other) {
+        if (other instanceof Shot) {
+            currentState = State.BREAKING;
+            gameView.playSound("obstacledestroy.wav", false);
+        }
+        if (other instanceof MoonBaggy) {
+            gamePlayManager.lifeLost();
+            gameView.playSound("baggygotshot.wav", false);
+            gamePlayManager.destroyGameObject(this);
+        }
+        if (other instanceof Mine) {
+            gamePlayManager.destroyGameObject(this);
+        }
+    }
+
+    @Override
+    public boolean tryToActivate(GameObject info) {
+        return info.getPosition().getX() > 200;
+    }
+
+    @Override
+    public void updateStatus() {
+        switch (currentState) {
+            case STANDARD -> {
+                image = currentState.display;
+            }
+            case BREAKING -> {
+                this.scale = 2;
+                image = currentState.display;
+                if (gameView.timer(20, this)) {
+                    currentState = State.BROKEN;
+                }
+            }
+            case BROKEN -> {
+                this.scale = 2;
+                image = currentState.display;
+                if (gameView.timer(20, this)) {
+                    gamePlayManager.destroyGameObject(this);
+                }
+            }
+        }
+    }
+}
